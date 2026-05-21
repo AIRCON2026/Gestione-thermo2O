@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Pannello Direzione - Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div id="login-master-card" class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="text-center mb-6">
+            <span class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto text-xl mb-3 font-bold">M</span>
+            <h2 class="text-xl font-black tracking-tight text-slate-100">DIREZIONE CENTRALE</h2>
+            <p class="text-xs text-slate-400 mt-1">Inserisci la chiave di accesso amministratore</p>
+        </div>
+        <div class="mb-5">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Password Amministratore</label>
+            <input type="password" id="pass-master" placeholder="••••••••" class="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl font-mono text-center text-slate-100 focus:border-blue-500 outline-none">
+        </div>
+        <button onclick="controlloAccessoMaster()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white p-3 rounded-xl font-bold text-sm tracking-wide transition shadow-lg">Sblocca Dashboard</button>
+    </div>
+
+    <div id="dashboard-master-content" class="w-full max-w-7xl mx-auto hidden animate-in fade-in duration-300">
+        <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">tHermo 2O - DIREZIONE MASTER</h1>
+                <p class="text-slate-400 text-sm mt-1">Controllo scorte, vendite e gestione credenziali rete agenti</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="esciMaster()" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-800 font-semibold transition">Chiudi Sessione</button>
+                <div class="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Centrale Attiva</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2">📦 Livelli Magazzino Live</h2>
+                        <span class="text-xs text-slate-400 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">💡 Clicca su un prodotto per vedere i dettagli</span>
+                    </div>
+                    <div id="contenitore-prodotti" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 flex flex-col h-[280px]">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2">🔔 Flusso Vendite Agenti</h2>
+                    <div id="lista-notifiche" class="flex-1 overflow-y-auto space-y-2 pr-2 text-xs">
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-500 italic text-center">
+                            Nessuna operazione registrata.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 flex flex-col h-[300px]">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2">👤 Generatore Profili Agenti</h2>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <input type="text" id="nuovo-agente-user" placeholder="Username (es: luigi)" class="p-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 outline-none focus:border-blue-500">
+                        <input type="text" id="nuovo-agente-pass" placeholder="Password (es: 9876)" class="p-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 outline-none focus:border-blue-500">
+                    </div>
+                    <button onclick="creaProfiloAgente()" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold text-xs p-2 rounded-xl transition shadow mb-3">Salva Nuovo Profilo</button>
+
+                    <div class="flex-1 overflow-y-auto border border-slate-800 rounded-xl bg-slate-950 text-[11px]">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800">
+                                    <th class="p-2">User Agente</th>
+                                    <th class="p-2">Password</th>
+                                    <th class="p-2 text-center">Azione</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabella-agenti-corpo" class="divide-y divide-slate-900"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-clienti" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl">
+            <div class="p-6 border-b border-slate-800 bg-slate-950 flex justify-between items-start">
+                <div>
+                    <span class="text-[10px] uppercase font-bold tracking-widest text-blue-400 block mb-1">Registro Spedizioni e Consegne</span>
+                    <h3 id="modal-nome-prodotto" class="font-bold text-base text-slate-100 leading-tight">Nome Prodotto</h3>
+                </div>
+                <button onclick="chiudiModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold p-1">&times;</button>
+            </div>
+            <div class="p-6 max-h-[350px] overflow-y-auto">
+                <div id="modal-stato-vuoto" class="text-slate-500 italic text-sm text-center py-6 hidden">
+                    Nessun ordine ricevuto per questo prodotto.
+                </div>
+                <table id="tabella-clienti" class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 font-semibold select-none">
+                            <th class="pb-2 text-center w-16">Spedito</th>
+                            <th class="pb-2">Cliente / Azienda</th>
+                            <th class="pb-2 text-center">Quantità</th>
+                            <th class="pb-2 text-center">Agente</th>
+                            <th class="pb-2 text-right cursor-pointer text-blue-400 hover:text-blue-300 transition" onclick="invertiOrdinamento()">
+                                Data / Ora Ricezione <span id="freccia-ordine">▼</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-clienti-corpo" class="divide-y divide-slate-800/50"></tbody>
+                </table>
+            </div>
+            <div class="p-4 bg-slate-950 border-t border-slate-800 flex justify-end">
+                <button onclick="chiudiModal()" class="bg-slate-800 hover:bg-slate-700 text-xs font-bold px-4 py-2 rounded-lg transition text-slate-300">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let cacheInventario = {};
+        let modelloCorrente = ""; 
+        let ordineCrescente = false;
+
+        window.onload = function() {
+            const tokenMaster = localStorage.getItem('master_autenticato');
+            if (tokenMaster === 'true') {
+                sbloccaSchermataVisiva();
+            }
+        }
+
+        async function controlloAccessoMaster() {
+            const pass = document.getElementById('pass-master').value;
+            
+            const risp = await fetch('/api/master/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+
+            if(risp.ok) {
+                localStorage.setItem('master_autenticato', 'true');
+                sbloccaSchermataVisiva();
+            } else {
+                alert("Chiave di sicurezza errata. Accesso negato.");
+            }
+        }
+
+        async function sbloccaSchermataVisiva() {
+            document.body.className = "bg-slate-950 text-slate-100 font-sans min-h-screen p-6 block";
+            document.title = "tHermo 2O - Dashboard Direzione";
+            document.getElementById('login-master-card').classList.add('hidden');
+            document.getElementById('dashboard-master-content').classList.remove('hidden');
+            
+            const risp = await fetch('/api/inventario');
+            cacheInventario = await risp.json();
+            costruisciListaMaster(cacheInventario);
+
+            // Carica la lista degli agenti all'avvio
+            caricaListaAgenti();
+        }
+
+        function esciMaster() {
+            localStorage.removeItem('master_autenticato');
+            window.location.reload();
+        }
+
+        function costruisciListaMaster(inventario) {
+            const contenitore = document.getElementById('contenitore-prodotti');
+            contenitore.innerHTML = "";
+
+            for(const key in inventario) {
+                const prodotto = inventario[key];
+                const div = document.createElement('div');
+                div.className = "bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/50 transition cursor-pointer group";
+                
+                div.onclick = (e) => {
+                    if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+                        modelloCorrente = key;
+                        apriListaClienti();
+                    }
+                };
+
+                let coloreQta = "text-emerald-400";
+                if(prodotto.quantita === 0) coloreQta = "text-red-500 font-bold animate-pulse";
+
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <h3 class="font-bold text-sm text-slate-200 group-hover:text-blue-400 transition">${prodotto.nome}</h3>
+                        <span class="text-[10px] text-slate-500 block mt-0.5 font-medium group-hover:text-slate-400">👥 Ordini attivi: ${prodotto.ordiniClienti.length} (Clicca per gestire)</span>
+                    </div>
+                    <div class="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                        <div class="text-right min-w-[70px]">
+                            <span class="text-[10px] text-slate-500 block uppercase">Pezzi</span>
+                            <span id="qta-${key}" class="text-xl font-mono font-bold ${coloreQta}">${prodotto.quantita}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            <input type="number" id="input-${key}" placeholder="Qta" class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-center text-slate-100">
+                            <button onclick="aggiornaScorte('${key}')" class="bg-blue-600 hover:bg-blue-700 text-[11px] font-bold px-2 py-1 rounded transition text-white">Carica</button>
+                        </div>
+                    </div>
+                `;
+                contenitore.appendChild(div);
+            }
+        }
+
+        // NUOVE FUNZIONI DI GESTIONE AGENTI DENTRO IL MASTER
+        async function caricaListaAgenti() {
+            const risp = await fetch('/api/master/agenti');
+            const agenti = await risp.json();
+            disegnaTabellaAgenti(agenti);
+        }
+
+        function disegnaTabellaAgenti(agenti) {
+            const corpo = document.getElementById('tabella-agenti-corpo');
+            corpo.innerHTML = "";
+            
+            for(const user in agenti) {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900 transition";
+                tr.innerHTML = `
+                    <td class="p-2 font-mono font-bold text-blue-400">${user}</td>
+                    <td class="p-2 text-slate-400 font-mono">${agenti[user]}</td>
+                    <td class="p-2 text-center">
+                        <button onclick="eliminaProfiloAgente('${user}')" class="text-red-500 hover:text-red-400 font-bold px-1 text-xs transition">Elimina</button>
+                    </td>
+                `;
+                corpo.appendChild(tr);
+            }
+        }
+
+        async function creaProfiloAgente() {
+            const userBox = document.getElementById('nuovo-agente-user');
+            const passBox = document.getElementById('nuovo-agente-pass');
+            
+            if(!userBox.value || !passBox.value) return alert("Inserisci sia Username che Password per l'agente!");
+
+            await fetch('/api/master/agenti/salva', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: userBox.value, password: passBox.value })
+            });
+
+            userBox.value = "";
+            passBox.value = "";
+            caricaListaAgenti();
+        }
+
+        async function eliminaProfiloAgente(username) {
+            if(!confirm(`Sei sicuro di voler bloccare ed eliminare l'agente: ${username}?`)) return;
+            
+            await fetch('/api/master/agenti/elimina', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username })
+            });
+            caricaListaAgenti();
+        }
+
+        function apriListaClienti() {
+            const pr = cacheInventario[modelloCorrente];
+            if(!pr) return;
+
+            document.getElementById('modal-nome-prodotto').innerText = pr.nome;
+            const corpoTabella = document.getElementById('lista-clienti-corpo');
+            const statoVuoto = document.getElementById('modal-stato-vuoto');
+            const tabella = document.getElementById('tabella-clienti');
+
+            corpoTabella.innerHTML = "";
+
+            if(pr.ordiniClienti.length === 0) {
+                statoVuoto.classList.remove('hidden');
+                tabella.classList.add('hidden');
+            } else {
+                statoVuoto.classList.add('hidden');
+                tabella.classList.remove('hidden');
+
+                document.getElementById('freccia-ordine').innerText = ordineCrescente ? "▲ Vecchi prima" : "▼ Recenti prima";
+
+                let ordiniOrdinati = [...pr.ordiniClienti];
+                ordiniOrdinati.sort((a, b) => {
+                    return ordineCrescente ? (a.timestamp - b.timestamp) : (b.timestamp - a.timestamp);
+                });
+
+                ordiniOrdinati.forEach(ordine => {
+                    const tr = document.createElement('tr');
+                    tr.className = ordine.spedito 
+                        ? "bg-slate-950/30 text-slate-500 transition line-through decoration-slate-700" 
+                        : "hover:bg-slate-950 transition text-slate-200";
+                    
+                    tr.innerHTML = `
+                        <td class="py-3 text-center">
+                            <input type="checkbox" ${ordine.spedito ? 'checked' : ''} 
+                                   onclick="cambiaStatoSpedito('${ordine.id}', this.checked)"
+                                   class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
+                        </td>
+                        <td class="py-3 font-semibold">${ordine.cliente}</td>
+                        <td class="py-3 text-center font-mono font-bold text-cyan-400 text-sm">${ordine.quantita} pz</td>
+                        <td class="py-3 text-center font-medium">${ordine.agente}</td>
+                        <td class="py-3 text-right font-mono text-[11px]">${ordine.giorno} - <span class="text-emerald-400 font-bold">${ordine.ora}</span></td>
+                    `;
+                    corpoTabella.appendChild(tr);
+                });
+            }
+            document.getElementById('modal-clienti').classList.remove('hidden');
+        }
+
+        function invertiOrdinamento() {
+            ordineCrescente = !ordineCrescente;
+            apriListaClienti();
+        }
+
+        async function cambiaStatoSpedito(ordineId, spuntato) {
+            await fetch('/api/master/stato-spedizione', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    modello: modelloCorrente, 
+                    ordineId: ordineId, 
+                    spedito: spuntato 
+                })
+            });
+        }
+
+        function chiudiModal() { document.getElementById('modal-clienti').classList.add('hidden'); }
+
+        socket.on('aggiorna_magazzino', (nuovoInventario) => {
+            cacheInventario = nuovoInventario;
+            const tokenMaster = localStorage.getItem('master_autenticato');
+            if (tokenMaster === 'true') {
+                costruisciListaMaster(nuovoInventario);
+                if(!document.getElementById('modal-clienti').classList.contains('hidden')) {
+                    apriListaClienti();
+                }
+            }
+        });
+
+        // Ascolta se la lista agenti cambia da un altro dispositivo connesso
+        socket.on('aggiorna_agenti_live', (nuoviAgenti) => {
+            const tokenMaster = localStorage.getItem('master_autenticato');
+            if (tokenMaster === 'true') disegnaTabellaAgenti(nuoviAgenti);
+        });
+
+        socket.on('notifica_master', (dati) => {
+            const tokenMaster = localStorage.getItem('master_autenticato');
+            if (tokenMaster !== 'true') return;
+            
+            const lista = document.getElementById('lista-notifiche');
+            if(lista.innerText.includes("Nessuna operazione registrata")) lista.innerHTML = "";
+
+            const div = document.createElement('div');
+            div.className = "p-3 rounded-xl border font-medium leading-relaxed ";
+            if(dati.tipo === 'SUCCESSO') div.className += "bg-emerald-950/40 border-emerald-900 text-emerald-300";
+            else if(dati.tipo === 'ATTENZIONE') div.className += "bg-amber-950/40 border-amber-900 text-amber-300";
+            else div.className += "bg-red-950/40 border-red-900 text-red-300";
+
+            div.innerText = dati.messaggio;
+            lista.insertBefore(div, lista.firstChild);
+        });
+
+        async function aggiornaScorte(chiaveModello) {
+            const input = document.getElementById(`input-${chiaveModello}`);
+            const valore = input.value;
+            if(!valore || valore < 0) return alert("Valore non valido!");
+
+            await fetch('/api/master/aggiungi-scorte', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modello: chiaveModello, nuovaQuantita: valore })
+            });
+            input.value = "";
+        }
+    </script>
+</body>
+</html>

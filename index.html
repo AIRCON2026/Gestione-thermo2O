@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Area Agenti - Catalogo tHermo 2O</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    
+    <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Accesso Agenti</h2>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700">Username Agente</label>
+            <input type="text" id="username" class="w-full p-2 border rounded mt-1">
+        </div>
+        <div class="mb-6">
+            <label class="block text-sm font-semibold text-gray-700">Password</label>
+            <input type="password" id="password" value="agente2026" class="w-full p-2 border rounded mt-1">
+        </div>
+        <button onclick="gestisciLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded font-bold transition">Accedi</button>
+    </div>
+
+    <div id="ordine-card" class="w-full max-w-xl hidden space-y-4">
+        
+        <div id="banner-esauriti" class="bg-red-100 border border-red-300 text-red-800 p-4 rounded-xl shadow hidden">
+            <h3 class="font-bold flex items-center gap-2 text-sm uppercase tracking-wider">🛑 Articoli Momentaneamente Terminati:</h3>
+            <ul id="lista-esauriti" class="list-disc list-inside mt-2 text-xs font-semibold space-y-1">
+                </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-xl shadow-lg">
+            <div class="flex justify-between items-center mb-6 border-b pb-3">
+                <h2 id="nome-agente-tag" class="text-xl font-bold text-gray-800"></h2>
+                <button onclick="disconnetti()" class="text-xs text-red-500 hover:text-red-700 underline font-semibold">Esci</button>
+            </div>
+            
+            <div id="messaggio-status" class="mb-4 p-3 rounded text-sm hidden"></div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700">Cliente / Ragione Sociale</label>
+                <input type="text" id="cliente" class="w-full p-2 border rounded mt-1" placeholder="Nome cliente o Azienda">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700">Seleziona Articolo tHermo 2O</label>
+                <select id="modello" class="w-full p-2 border rounded mt-1 text-sm bg-gray-50"></select>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700">Quantità Richiesta</label>
+                <input type="number" id="quantita" value="1" min="1" class="w-full p-2 border rounded mt-1 font-mono">
+            </div>
+            
+            <button onclick="inviaOrdine()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded font-bold text-lg transition shadow">Invia Ordine in Direzione</button>
+        </div>
+    </div>
+
+    <script>
+        let agenteLoggato = "";
+        const socket = io();
+
+        window.onload = function() {
+            const salvato = localStorage.getItem('agente');
+            if (salvato) {
+                agenteLoggato = salvato;
+                mostraPannelloOrdini();
+            }
+        }
+
+        async function mostraPannelloOrdini() {
+            document.getElementById('login-card').classList.add('hidden');
+            document.getElementById('nome-agente-tag').innerText = `Agente: ${agenteLoggato}`;
+            document.getElementById('ordine-card').classList.remove('hidden');
+            await caricaEControllaProdotti();
+        }
+
+        async function caricaEControllaProdotti() {
+            const risp = await fetch('/api/inventario');
+            const inventario = await risp.json();
+            aggiornaInterfacciaProdotti(inventario);
+        }
+
+        function aggiornaInterfacciaProdotti(inventario) {
+            const select = document.getElementById('modello');
+            const banner = document.getElementById('banner-esauriti');
+            const listaEsauriti = document.getElementById('lista-esauriti');
+            
+            const valoreSelezionatoPrecedente = select.value;
+            select.innerHTML = "";
+            listaEsauriti.innerHTML = "";
+            let ciSonoEsauriti = false;
+
+            for (const key in inventario) {
+                const prod = inventario[key];
+                
+                const opt = document.createElement('option');
+                opt.value = key;
+                
+                // NOTA SEGRETA COMMERCIALE: Mostriamo solo il nome del prodotto, NASCONDENDO i pezzi rimasti!
+                if(prod.quantita === 0) {
+                    opt.innerText = `❌ ${prod.nome} (NON DISPONIBILE)`;
+                } else {
+                    opt.innerText = prod.nome;
+                }
+                select.appendChild(opt);
+
+                if (prod.quantita === 0) {
+                    ciSonoEsauriti = true;
+                    const li = document.createElement('li');
+                    li.innerText = `${prod.nome} - Non disponibile per nuovi ordini`;
+                    listaEsauriti.appendChild(li);
+                }
+            }
+
+            if(valoreSelezionatoPrecedente) select.value = valoreSelezionatoPrecedente;
+
+            if (ciSonoEsauriti) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        socket.on('aggiorna_magazzino', (nuovoInventario) => {
+            if(agenteLoggato) {
+                aggiornaInterfacciaProdotti(nuovoInventario);
+            }
+        });
+
+        async function gestisciLogin() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+            if(!user) return alert("Inserisci l'username!");
+
+            const risp = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            if (risp.ok) {
+                agenteLoggato = user;
+                localStorage.setItem('agente', user);
+                mostraPannelloOrdini();
+            } else {
+                alert("Password errata!");
+            }
+        }
+
+        function disconnetti() {
+            localStorage.removeItem('agente');
+            window.location.reload();
+        }
+
+        async function inviaOrdine() {
+            const cliente = document.getElementById('cliente').value.trim();
+            const modello = document.getElementById('modello').value;
+            const quantita = parseInt(document.getElementById('quantita').value);
+            const boxStatus = document.getElementById('messaggio-status');
+            if(!cliente) return alert("Inserisci il nome del cliente!");
+
+            const risp = await fetch('/api/ordine', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agente: agenteLoggato, cliente: cliente, modello: modello, quantitaRichiesta: quantita })
+            });
+            
+            boxStatus.classList.remove('hidden');
+            if (risp.ok) {
+                boxStatus.className = "mb-4 p-3 rounded bg-green-100 text-green-800 font-semibold text-sm";
+                boxStatus.innerText = "✅ Ordine inviato ed elaborato dal magazzino!";
+                document.getElementById('cliente').value = "";
+            } else {
+                const dati = await risp.json();
+                boxStatus.className = "mb-4 p-3 rounded bg-red-100 text-red-800 font-semibold text-sm";
+                boxStatus.innerText = dati.errore === "PRODOTTO_NON_DISPONIBILE" ? "❌ Errore: Questo articolo non è più disponibile!" : "❌ Errore: Quantità richiesta non disponibile a magazzino!";
+            }
+        }
+    </script>
+</body>
+</html>
