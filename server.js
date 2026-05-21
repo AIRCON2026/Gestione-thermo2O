@@ -15,11 +15,8 @@ const FILE_DB = './dati.json';
 
 function caricaDB() {
     if (fs.existsSync(FILE_DB)) {
-        try {
-            return JSON.parse(fs.readFileSync(FILE_DB, 'utf8'));
-        } catch (e) { console.error("Errore lettura DB"); }
+        return JSON.parse(fs.readFileSync(FILE_DB, 'utf8'));
     }
-    // Struttura iniziale completa
     return {
         inventario: {
             "prod1": { nome: "tHermo 2O 100 LT a parete WiFi", quantita: 10, ordiniClienti: [] },
@@ -39,43 +36,89 @@ function salvaDB() {
     fs.writeFileSync(FILE_DB, JSON.stringify(db, null, 2));
 }
 
-// --- ROTTE ---
+// Rotte
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/master', (req, res) => res.sendFile(path.join(__dirname, 'master.html')));
 app.get('/api/inventario', (req, res) => res.json(db.inventario));
+app.get('/api/master/agenti', (req, res) => res.json(db.databaseAgenti));
 
-// API ORDINE (Corretta per gestire spedizione e orario)
+// Login
+app.post('/api/login', (req, res) => {
+    const u = req.body.username?.toLowerCase().trim();
+    if (db.databaseAgenti[u] && db.databaseAgenti[u] === req.body.password) return res.json({ success: true });
+    return res.status(401).json({ success: false });
+});
+
+app.post('/api/master/login', (req, res) => {
+    if (req.body.password === "master2026") return res.json({ success: true });
+    return res.status(401).json({ success: false });
+});
+
+// GESTIONE ORDINI (Corretta per il tuo front-end)
 app.post('/api/ordine', (req, res) => {
     const { agente, cliente, modello, quantitaRichiesta } = req.body;
     const p = db.inventario[modello];
     
-    if (p) {
+    if (p && p.quantita >= quantitaRichiesta) {
+        p.quantita -= quantitaRichiesta;
+        const now = new Date();
         const nuovoOrdine = {
+            id: Date.now().toString(), // Genera un ID unico basato sul tempo
             cliente,
             quantita: quantitaRichiesta,
             agente,
-            orario: new Date().toLocaleString('it-IT'),
+            giorno: now.toLocaleDateString('it-IT'),
+            ora: now.toLocaleTimeString('it-IT'),
+            timestamp: now.getTime(),
             spedito: false
         };
         
         p.ordiniClienti.push(nuovoOrdine);
         salvaDB();
+        
+        io.emit('notifica_master', { tipo: 'SUCCESSO', messaggio: `🟢 ${agente} ha venduto ${quantitaRichiesta} pz a ${cliente}` });
         io.emit('aggiorna_magazzino', db.inventario);
         return res.json({ success: true });
+    }
+    return res.status(400).json({ errore: "PRODOTTO_NON_DISPONIBILE" });
+});
+
+// GESTIONE STATO SPEDITO (Corretta)
+app.post('/api/master/stato-spedizione', (req, res) => {
+    const { modello, ordineId, spedito } = req.body;
+    const p = db.inventario[modello];
+    if (p) {
+        const ordine = p.ordiniClienti.find(o => o.id === ordineId);
+        if (ordine) {
+            ordine.spedito = spedito;
+            salvaDB();
+            io.emit('aggiorna_magazzino', db.inventario);
+            return res.json({ success: true });
+        }
     }
     res.status(400).json({ success: false });
 });
 
-// API PER SEGNARE COME SPEDITO
-app.post('/api/master/spedito', (req, res) => {
-    const { modello, index } = req.body;
-    if (db.inventario[modello] && db.inventario[modello].ordiniClienti[index]) {
-        db.inventario[modello].ordiniClienti[index].spedito = true;
-        salvaDB();
-        io.emit('aggiorna_magazzino', db.inventario);
-        return res.json({ success: true });
-    }
-    res.status(400).json({ success: false });
+// Altre API (Agenti e Scorte)
+app.post('/api/master/agenti/salva', (req, res) => {
+    db.databaseAgenti[req.body.username.toLowerCase().trim()] = req.body.password.trim();
+    salvaDB();
+    io.emit('aggiorna_agenti_live', db.databaseAgenti);
+    return res.json({ success: true });
+});
+
+app.post('/api/master/agenti/elimina', (req, res) => {
+    delete db.databaseAgenti[req.body.username];
+    salvaDB();
+    io.emit('aggiorna_agenti_live', db.databaseAgenti);
+    return res.json({ success: true });
+});
+
+app.post('/api/master/aggiungi-scorte', (req, res) => {
+    db.inventario[req.body.modello].quantita = parseInt(req.body.nuovaQuantita);
+    salvaDB();
+    io.emit('aggiorna_magazzino', db.inventario);
+    res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 10000;
