@@ -42,6 +42,29 @@ app.get('/master', (req, res) => res.sendFile(path.join(__dirname, 'master.html'
 app.get('/api/inventario', (req, res) => res.json(db.inventario));
 app.get('/api/master/agenti', (req, res) => res.json(db.databaseAgenti));
 
+// NUOVA ROTTA: API Storico per Agente
+app.get('/api/storico', (req, res) => {
+    const agenteRichiedente = req.query.agente;
+    let storicoFiltrato = [];
+
+    // Cicla tutti i prodotti per estrarre gli ordini dell'agente
+    for (const key in db.inventario) {
+        const prod = db.inventario[key];
+        const ordiniAgente = prod.ordiniClienti
+            .filter(o => o.agente === agenteRichiedente)
+            .map(o => ({
+                data: o.timestamp,
+                cliente: o.cliente,
+                nomeProdotto: prod.nome
+            }));
+        storicoFiltrato = storicoFiltrato.concat(ordiniAgente);
+    }
+
+    // Ordina per data (più recente prima)
+    storicoFiltrato.sort((a, b) => b.data - a.data);
+    res.json(storicoFiltrato);
+});
+
 // Login
 app.post('/api/login', (req, res) => {
     const u = req.body.username?.toLowerCase().trim();
@@ -54,7 +77,7 @@ app.post('/api/master/login', (req, res) => {
     return res.status(401).json({ success: false });
 });
 
-// GESTIONE ORDINI (Corretta per il tuo front-end)
+// GESTIONE ORDINI
 app.post('/api/ordine', (req, res) => {
     const { agente, cliente, modello, quantitaRichiesta } = req.body;
     const p = db.inventario[modello];
@@ -63,7 +86,7 @@ app.post('/api/ordine', (req, res) => {
         p.quantita -= quantitaRichiesta;
         const now = new Date();
         const nuovoOrdine = {
-            id: Date.now().toString(), // Genera un ID unico basato sul tempo
+            id: Date.now().toString(),
             cliente,
             quantita: quantitaRichiesta,
             agente,
@@ -83,7 +106,7 @@ app.post('/api/ordine', (req, res) => {
     return res.status(400).json({ errore: "PRODOTTO_NON_DISPONIBILE" });
 });
 
-// GESTIONE STATO SPEDITO (Corretta)
+// GESTIONE STATO SPEDITO
 app.post('/api/master/stato-spedizione', (req, res) => {
     const { modello, ordineId, spedito } = req.body;
     const p = db.inventario[modello];
@@ -99,7 +122,7 @@ app.post('/api/master/stato-spedizione', (req, res) => {
     res.status(400).json({ success: false });
 });
 
-// Altre API (Agenti e Scorte)
+// Altre API
 app.post('/api/master/agenti/salva', (req, res) => {
     db.databaseAgenti[req.body.username.toLowerCase().trim()] = req.body.password.trim();
     salvaDB();
