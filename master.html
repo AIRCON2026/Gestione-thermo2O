@@ -1,34 +1,66 @@
-function apriListaClienti() {
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Pannello Direzione - Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <script>
+        // ... [Tutte le tue funzioni originali fino a apriListaClienti] ...
+
+        function apriListaClienti() {
             const pr = cacheInventario[modelloCorrente];
             if(!pr) return;
+
             document.getElementById('modal-nome-prodotto').innerText = pr.nome;
             const corpoTabella = document.getElementById('lista-clienti-corpo');
             corpoTabella.innerHTML = "";
 
-            // ... (logica ordinamento e forEach) ...
+            let ordiniOrdinati = [...pr.ordiniClienti];
+            ordiniOrdinati.sort((a, b) => {
+                return ordineCrescente ? (a.timestamp - b.timestamp) : (b.timestamp - a.timestamp);
+            });
 
             ordiniOrdinati.forEach(ordine => {
                 const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800";
                 tr.innerHTML = `
-                    <td><input type="checkbox" ${ordine.spedito ? 'checked' : ''} onclick="cambiaStatoSpedito('${ordine.id}', this.checked)"></td>
-                    <td>${ordine.cliente}</td>
-                    <td>${ordine.quantita}</td>
-                    <td>${ordine.agente}</td>
-                    <td>${ordine.giorno}</td>
-                    <td><button onclick="richiediEliminazioneOrdine('${ordine.id}')" class="text-red-500 font-bold">X</button></td>
+                    <td class="py-2 text-center">
+                        <input type="checkbox" ${ordine.spedito ? 'checked' : ''} onclick="cambiaStatoSpedito('${ordine.id}', this.checked)">
+                    </td>
+                    <td class="py-2">${ordine.cliente}</td>
+                    <td class="py-2 text-center">${ordine.quantita}</td>
+                    <td class="py-2 text-center">${ordine.agente}</td>
+                    <td class="py-2 text-center">${ordine.giorno}</td>
+                    <td class="py-2 text-center">
+                        <button onclick="richiediEliminazioneOrdine('${ordine.id}')" class="text-red-500 font-bold hover:text-red-300">X</button>
+                    </td>
                 `;
                 corpoTabella.appendChild(tr);
             });
             document.getElementById('modal-clienti').classList.remove('hidden');
         }
 
-        // AGGIUNTA:
         async function richiediEliminazioneOrdine(ordineId) {
             const pass = prompt("Inserisci password cancellazione:");
+            if (!pass) return;
             const res = await fetch('/api/master/elimina-ordine', { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
                 body: JSON.stringify({ modello: modelloCorrente, ordineId: ordineId, password: pass }) 
             });
-            if((await res.json()).success) { alert("Ordine eliminato"); } else { alert("Errore"); }
+            const data = await res.json();
+            if (data.success) { 
+                alert("Ordine eliminato!"); 
+            } else { 
+                alert("Errore: " + data.messaggio); 
+            }
         }
+
+        // ... [Tutte le tue altre funzioni originali invariate] ...
+    </script>
+</body>
+</html>
