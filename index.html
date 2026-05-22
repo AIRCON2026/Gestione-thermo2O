@@ -6,9 +6,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="/socket.io/socket.io.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
-    
-    <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+
+    <!-- LOGIN CARD -->
+    <div id="login-card" class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md mt-10">
         <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Accesso Agenti</h2>
         <div class="mb-4">
             <label class="block text-sm font-semibold text-gray-700">Username Agente</label>
@@ -21,12 +22,12 @@
         <button onclick="gestisciLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded font-bold transition">Accedi</button>
     </div>
 
-    <div id="ordine-card" class="w-full max-w-xl hidden space-y-4">
+    <!-- PANEL CARD -->
+    <div id="ordine-card" class="w-full max-w-xl hidden space-y-4 mt-10">
         
         <div id="banner-esauriti" class="bg-red-100 border border-red-300 text-red-800 p-4 rounded-xl shadow hidden">
             <h3 class="font-bold flex items-center gap-2 text-sm uppercase tracking-wider">🛑 Articoli Momentaneamente Terminati:</h3>
-            <ul id="lista-esauriti" class="list-disc list-inside mt-2 text-xs font-semibold space-y-1">
-                </ul>
+            <ul id="lista-esauriti" class="list-disc list-inside mt-2 text-xs font-semibold space-y-1"></ul>
         </div>
 
         <div class="bg-white p-8 rounded-xl shadow-lg">
@@ -54,6 +55,23 @@
             
             <button onclick="inviaOrdine()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded font-bold text-lg transition shadow">Invia Ordine in Direzione</button>
         </div>
+
+        <!-- SEZIONE STORICO ORDINI -->
+        <div id="storico-card" class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">I Tuoi Ordini Recenti</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2">Data</th>
+                            <th class="px-3 py-2">Cliente</th>
+                            <th class="px-3 py-2">Prodotto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-ordini" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -73,6 +91,23 @@
             document.getElementById('nome-agente-tag').innerText = `Agente: ${agenteLoggato}`;
             document.getElementById('ordine-card').classList.remove('hidden');
             await caricaEControllaProdotti();
+            await caricaStoricoOrdini();
+        }
+
+        async function caricaStoricoOrdini() {
+            try {
+                const risp = await fetch(`/api/storico?agente=${encodeURIComponent(agenteLoggato)}`);
+                const ordini = await risp.json();
+                const container = document.getElementById('lista-ordini');
+                container.innerHTML = "";
+                ordini.forEach(ordine => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td class="px-3 py-2 text-gray-600">${new Date(ordine.data).toLocaleDateString()}</td>
+                                    <td class="px-3 py-2 font-medium">${ordine.cliente}</td>
+                                    <td class="px-3 py-2 text-gray-600">${ordine.nomeProdotto || ordine.modello}</td>`;
+                    container.appendChild(tr);
+                });
+            } catch (err) { console.error("Errore storico:", err); }
         }
 
         async function caricaEControllaProdotti() {
@@ -85,47 +120,29 @@
             const select = document.getElementById('modello');
             const banner = document.getElementById('banner-esauriti');
             const listaEsauriti = document.getElementById('lista-esauriti');
-            
-            const valoreSelezionatoPrecedente = select.value;
             select.innerHTML = "";
             listaEsauriti.innerHTML = "";
             let ciSonoEsauriti = false;
 
             for (const key in inventario) {
                 const prod = inventario[key];
-                
                 const opt = document.createElement('option');
                 opt.value = key;
-                
-                // NOTA SEGRETA COMMERCIALE: Mostriamo solo il nome del prodotto, NASCONDENDO i pezzi rimasti!
-                if(prod.quantita === 0) {
-                    opt.innerText = `❌ ${prod.nome} (NON DISPONIBILE)`;
-                } else {
-                    opt.innerText = prod.nome;
-                }
+                opt.innerText = prod.quantita === 0 ? `❌ ${prod.nome} (NON DISPONIBILE)` : prod.nome;
                 select.appendChild(opt);
 
                 if (prod.quantita === 0) {
                     ciSonoEsauriti = true;
                     const li = document.createElement('li');
-                    li.innerText = `${prod.nome} - Non disponibile per nuovi ordini`;
+                    li.innerText = `${prod.nome} - Non disponibile`;
                     listaEsauriti.appendChild(li);
                 }
             }
-
-            if(valoreSelezionatoPrecedente) select.value = valoreSelezionatoPrecedente;
-
-            if (ciSonoEsauriti) {
-                banner.classList.remove('hidden');
-            } else {
-                banner.classList.add('hidden');
-            }
+            banner.classList.toggle('hidden', !ciSonoEsauriti);
         }
 
         socket.on('aggiorna_magazzino', (nuovoInventario) => {
-            if(agenteLoggato) {
-                aggiornaInterfacciaProdotti(nuovoInventario);
-            }
+            if(agenteLoggato) aggiornaInterfacciaProdotti(nuovoInventario);
         });
 
         async function gestisciLogin() {
@@ -142,9 +159,7 @@
                 agenteLoggato = user;
                 localStorage.setItem('agente', user);
                 mostraPannelloOrdini();
-            } else {
-                alert("Password errata!");
-            }
+            } else { alert("Password errata!"); }
         }
 
         function disconnetti() {
@@ -168,12 +183,12 @@
             boxStatus.classList.remove('hidden');
             if (risp.ok) {
                 boxStatus.className = "mb-4 p-3 rounded bg-green-100 text-green-800 font-semibold text-sm";
-                boxStatus.innerText = "✅ Ordine inviato ed elaborato dal magazzino!";
+                boxStatus.innerText = "✅ Ordine inviato!";
                 document.getElementById('cliente').value = "";
+                caricaStoricoOrdini(); // Aggiorna la tabella dopo l'invio
             } else {
-                const dati = await risp.json();
                 boxStatus.className = "mb-4 p-3 rounded bg-red-100 text-red-800 font-semibold text-sm";
-                boxStatus.innerText = dati.errore === "PRODOTTO_NON_DISPONIBILE" ? "❌ Errore: Questo articolo non è più disponibile!" : "❌ Errore: Quantità richiesta non disponibile a magazzino!";
+                boxStatus.innerText = "❌ Errore durante l'invio!";
             }
         }
     </script>
