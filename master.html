@@ -12,6 +12,7 @@
         <div class="text-center mb-6">
             <span class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto text-xl mb-3 font-bold">M</span>
             <h2 class="text-xl font-black tracking-tight text-slate-100">DIREZIONE CENTRALE</h2>
+            <p class="text-xs text-slate-400 mt-1">Inserisci la chiave di accesso amministratore</p>
         </div>
         <div class="mb-5">
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Password Amministratore</label>
@@ -24,47 +25,59 @@
         <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
             <div>
                 <h1 class="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">tHermo 2O - DIREZIONE MASTER</h1>
+                <p class="text-slate-400 text-sm mt-1">Controllo scorte, vendite e gestione credenziali rete agenti</p>
             </div>
-            <button onclick="esciMaster()" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg border border-slate-800 font-semibold transition">Chiudi Sessione</button>
+            <div class="flex items-center gap-4">
+                <button onclick="esciMaster()" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-800 font-semibold transition">Chiudi Sessione</button>
+                <div class="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Centrale Attiva</span>
+                </div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 space-y-4">
                 <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800">
-                    <h2 class="text-xl font-bold mb-6">📦 Livelli Magazzino Live</h2>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2">📦 Livelli Magazzino Live</h2>
+                        <span class="text-xs text-slate-400 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">💡 Clicca su un prodotto per gestire</span>
+                    </div>
                     <div id="contenitore-prodotti" class="space-y-3"></div>
                 </div>
             </div>
             <div class="space-y-6">
-                <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 h-[280px] flex flex-col">
-                    <h2 class="text-lg font-bold mb-3">🔔 Flusso Vendite Agenti</h2>
-                    <div id="lista-notifiche" class="flex-1 overflow-y-auto space-y-2 pr-2 text-xs"></div>
+                <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 flex flex-col h-[280px]">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2">🔔 Flusso Vendite Agenti</h2>
+                    <div id="lista-notifiche" class="flex-1 overflow-y-auto space-y-2 pr-2 text-xs">
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-500 italic text-center">Nessuna operazione registrata.</div>
+                    </div>
+                </div>
+                <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 flex flex-col h-[300px]">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2">👤 Generatore Profili Agenti</h2>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <input type="text" id="nuovo-agente-user" placeholder="Username" class="p-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 outline-none">
+                        <input type="text" id="nuovo-agente-pass" placeholder="Password" class="p-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-100 outline-none">
+                    </div>
+                    <button onclick="creaProfiloAgente()" class="bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold text-xs p-2 rounded-xl transition shadow mb-3">Salva Nuovo Profilo</button>
+                    <div class="flex-1 overflow-y-auto border border-slate-800 rounded-xl bg-slate-950 text-[11px]">
+                        <table class="w-full text-left"><tbody id="tabella-agenti-corpo" class="divide-y divide-slate-900"></tbody></table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL CLIENTI -->
     <div id="modal-clienti" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl">
-            <div class="p-6 border-b border-slate-800 bg-slate-950 flex justify-between items-start">
-                <div>
-                    <h3 id="modal-nome-prodotto" class="font-bold text-base text-slate-100">Nome Prodotto</h3>
-                </div>
-                <button onclick="chiudiModal()" class="text-slate-400 hover:text-slate-200 text-xl">&times;</button>
+            <div class="p-6 border-b border-slate-800 bg-slate-950 flex justify-between">
+                <div><span class="text-[10px] uppercase font-bold text-blue-400">Registro Ordini</span>
+                <h3 id="modal-nome-prodotto" class="font-bold text-base text-slate-100">Nome Prodotto</h3></div>
+                <button onclick="chiudiModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
             </div>
-            <div class="p-6 max-h-[400px] overflow-y-auto">
-                <table id="tabella-clienti" class="w-full text-left text-xs">
-                    <thead>
-                        <tr class="text-slate-400 border-b border-slate-800">
-                            <th class="pb-2 text-center">Spedito</th>
-                            <th class="pb-2">Cliente</th>
-                            <th class="pb-2 text-center">Qta</th>
-                            <th class="pb-2 text-center">Agente</th>
-                            <th class="pb-2 text-right">Data</th>
-                            <th class="pb-2 text-center">Azioni</th>
-                        </tr>
-                    </thead>
+            <div class="p-6 max-h-[350px] overflow-y-auto">
+                <table class="w-full text-left text-xs">
+                    <thead><tr class="text-slate-400 border-b border-slate-800"><th class="pb-2">Spedito</th><th class="pb-2">Cliente</th><th class="pb-2 text-center">Qta</th><th class="pb-2 text-center">Agente</th><th class="pb-2 text-right">Data</th><th class="pb-2 text-center">Azioni</th></tr></thead>
                     <tbody id="lista-clienti-corpo" class="divide-y divide-slate-800"></tbody>
                 </table>
             </div>
@@ -75,84 +88,76 @@
         const socket = io();
         let cacheInventario = {};
         let modelloCorrente = ""; 
+        let ordineCrescente = false;
 
-        // [FUNZIONI DI SISTEMA RIMASTE INVARIATE]
         async function controlloAccessoMaster() {
             const pass = document.getElementById('pass-master').value;
             const risp = await fetch('/api/master/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) });
-            if(risp.ok) { localStorage.setItem('master_autenticato', 'true'); sbloccaSchermataVisiva(); } else { alert("Chiave errata."); }
+            if(risp.ok) { localStorage.setItem('master_autenticato', 'true'); sbloccaSchermataVisiva(); } else { alert("Accesso negato."); }
         }
 
-        function sbloccaSchermataVisiva() {
+        async function sbloccaSchermataVisiva() {
             document.getElementById('login-master-card').classList.add('hidden');
             document.getElementById('dashboard-master-content').classList.remove('hidden');
-            caricaDati();
-        }
-
-        async function caricaDati() {
             const risp = await fetch('/api/inventario');
             cacheInventario = await risp.json();
             costruisciListaMaster(cacheInventario);
+            caricaListaAgenti();
         }
 
         function esciMaster() { localStorage.removeItem('master_autenticato'); window.location.reload(); }
 
-        // [LOGICA ELIMINAZIONE ORDINE]
-        async function eliminaOrdine(modello, ordineId) {
-            const password = prompt("⚠️ ATTENZIONE: Inserisci la Password Master per eliminare l'ordine e ripristinare la scorta:");
+        // NUOVA FUNZIONE ELIMINA
+        async function richiediEliminazioneOrdine(modello, ordineId) {
+            const password = prompt("⚠️ Inserisci la Password Master per eliminare l'ordine e ripristinare le scorte:");
             if (!password) return;
+            const risp = await fetch('/api/master/elimina-ordine', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modello, ordineId, password }) });
+            if (risp.ok) { alert("Ordine eliminato correttamente!"); } else { alert("Password errata o errore."); }
+        }
 
-            const response = await fetch('/api/master/elimina-ordine', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ modello, ordineId, password })
-            });
-
-            if (response.ok) {
-                alert("Ordine eliminato con successo!");
-                caricaDati(); // Ricarica inventario
-            } else {
-                const data = await response.json();
-                alert("Errore: " + (data.errore || "Operazione non riuscita"));
+        function costruisciListaMaster(inventario) {
+            const contenitore = document.getElementById('contenitore-prodotti');
+            contenitore.innerHTML = "";
+            for(const key in inventario) {
+                const p = inventario[key];
+                const div = document.createElement('div');
+                div.className = "bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center cursor-pointer hover:border-blue-500 transition group";
+                div.onclick = () => { modelloCorrente = key; apriListaClienti(); };
+                div.innerHTML = `<div class="flex-1"><h3 class="font-bold text-sm text-slate-200">${p.nome}</h3><span class="text-[10px] text-slate-500">Ordini: ${p.ordiniClienti.length}</span></div>
+                                 <div class="text-right"><span class="text-xl font-mono font-bold ${p.quantita===0?'text-red-500':'text-emerald-400'}">${p.quantita}</span></div>`;
+                contenitore.appendChild(div);
             }
         }
 
-        // [RENDER TABELLA ORDINI]
         function apriListaClienti() {
             const pr = cacheInventario[modelloCorrente];
             document.getElementById('modal-nome-prodotto').innerText = pr.nome;
             const corpo = document.getElementById('lista-clienti-corpo');
             corpo.innerHTML = "";
-
-            pr.ordiniClienti.forEach(ordine => {
+            pr.ordiniClienti.forEach(o => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="py-3 text-center"><input type="checkbox" ${ordine.spedito ? 'checked' : ''} onclick="cambiaStatoSpedito('${ordine.id}', this.checked)"></td>
-                    <td class="py-3 font-semibold">${ordine.cliente}</td>
-                    <td class="py-3 text-center text-cyan-400 font-bold">${ordine.quantita}</td>
-                    <td class="py-3 text-center">${ordine.agente}</td>
-                    <td class="py-3 text-right text-[10px]">${ordine.giorno} ${ordine.ora}</td>
-                    <td class="py-3 text-center">
-                        <button onclick="eliminaOrdine('${modelloCorrente}', '${ordine.id}')" class="text-red-500 hover:text-red-300 font-bold text-xs px-2 py-1 bg-red-950/30 rounded border border-red-900">Elimina</button>
-                    </td>
-                `;
+                tr.innerHTML = `<td><input type="checkbox" ${o.spedito?'checked':''} onclick="cambiaStatoSpedito('${o.id}', this.checked)"></td>
+                                <td class="py-2">${o.cliente}</td><td class="text-center font-bold text-cyan-400">${o.quantita}</td>
+                                <td class="text-center">${o.agente}</td><td class="text-[10px] text-right">${o.giorno} ${o.ora}</td>
+                                <td class="text-center"><button onclick="richiediEliminazioneOrdine('${modelloCorrente}','${o.id}')" class="text-red-500 bg-red-950/30 px-2 py-1 rounded text-[10px] font-bold border border-red-900">ELIMINA</button></td>`;
                 corpo.appendChild(tr);
             });
             document.getElementById('modal-clienti').classList.remove('hidden');
         }
 
-        // ... (Mantenere le altre funzioni esistenti come costruisciListaMaster, cambiaStatoSpedito, etc.)
+        async function cambiaStatoSpedito(ordineId, spuntato) {
+            await fetch('/api/master/stato-spedizione', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modello: modelloCorrente, ordineId, spedito: spuntato }) });
+        }
+
         function chiudiModal() { document.getElementById('modal-clienti').classList.add('hidden'); }
-        
-        socket.on('aggiorna_magazzino', (nuovoInventario) => {
-            cacheInventario = nuovoInventario;
-            if(document.getElementById('dashboard-master-content').classList.contains('hidden') === false) {
-                costruisciListaMaster(nuovoInventario);
-                if(!document.getElementById('modal-clienti').classList.contains('hidden')) apriListaClienti();
-            }
-        });
-        
-        // [Incollare qui le tue funzioni rimanenti: costruisciListaMaster, cambiaStatoSpedito, aggiornaScorte, etc.]
+
+        // Gestione Agenti e Socket
+        async function caricaListaAgenti() { const r = await fetch('/api/master/agenti'); const a = await r.json(); const c = document.getElementById('tabella-agenti-corpo'); c.innerHTML = ""; for(const u in a) { c.innerHTML += `<tr><td class="p-2 text-blue-400 font-bold">${u}</td><td class="p-2 text-slate-400">${a[u]}</td><td class="p-2 text-center"><button onclick="eliminaProfiloAgente('${u}')" class="text-red-500 hover:text-red-300">Elimina</button></td></tr>`; } }
+        async function creaProfiloAgente() { const u = document.getElementById('nuovo-agente-user').value; const p = document.getElementById('nuovo-agente-pass').value; await fetch('/api/master/agenti/salva', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) }); caricaListaAgenti(); }
+        async function eliminaProfiloAgente(u) { if(confirm('Eliminare agente?')) { await fetch('/api/master/agenti/elimina', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u}) }); caricaListaAgenti(); } }
+
+        socket.on('aggiorna_magazzino', (inv) => { cacheInventario = inv; costruisciListaMaster(inv); if(!document.getElementById('modal-clienti').classList.contains('hidden')) apriListaClienti(); });
+        socket.on('aggiorna_agenti_live', () => caricaListaAgenti());
     </script>
 </body>
 </html>
