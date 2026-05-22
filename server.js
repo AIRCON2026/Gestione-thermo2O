@@ -123,17 +123,3 @@ app.post('/api/master/aggiungi-scorte', (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log('Server attivo sulla porta ' + PORT));
-
-
-package.json
-
-{
-  "name": "gestione-thermo2o",
-  "version": "1.0.0",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.0"
-  }
-}
