@@ -1,126 +1,34 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard Direzione</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="/socket.io/socket.io.js"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4">
-
-    <div id="login-master-card" class="bg-slate-900 border p-8 rounded-2xl w-full max-w-md mx-auto mt-20">
-        <h2 class="text-xl font-bold mb-4">DIREZIONE CENTRALE</h2>
-        <input type="password" id="pass-master" placeholder="Password" class="w-full p-3 bg-slate-950 border rounded-xl mb-4">
-        <button onclick="controlloAccessoMaster()" class="w-full bg-blue-600 p-3 rounded-xl">Sblocca</button>
-    </div>
-
-    <div id="dashboard-master-content" class="hidden">
-        <h1 class="text-3xl font-black mb-8">tHermo 2O - DIREZIONE</h1>
-        <div id="contenitore-prodotti" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
-        
-        <div class="mt-8 bg-slate-900 p-6 rounded-2xl">
-            <h2 class="font-bold mb-4">Generatore Profili Agenti</h2>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="nuovo-agente-user" placeholder="User" class="p-2 bg-slate-950 border rounded">
-                <input type="text" id="nuovo-agente-pass" placeholder="Pass" class="p-2 bg-slate-950 border rounded">
-                <button onclick="creaProfiloAgente()" class="bg-blue-600 px-4 rounded">Salva</button>
-            </div>
-            <table class="w-full text-left">
-                <tbody id="tabella-agenti-corpo"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="modal-clienti" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 p-6 rounded-2xl w-full max-w-2xl">
-            <h3 id="modal-nome-prodotto" class="font-bold text-xl mb-4"></h3>
-            <table class="w-full text-left text-xs">
-                <thead><tr><th>Spedito</th><th>Cliente</th><th>Qta</th><th>Agente</th><th>Azioni</th></tr></thead>
-                <tbody id="lista-clienti-corpo"></tbody>
-            </table>
-            <button onclick="chiudiModal()" class="mt-4 bg-slate-700 px-4 py-2 rounded">Chiudi</button>
-        </div>
-    </div>
-
-    <script>
-        const socket = io();
-        let cacheInventario = {}, modelloCorrente = "";
-
-        async function controlloAccessoMaster() {
-            const pass = document.getElementById('pass-master').value;
-            const risp = await fetch('/api/master/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) });
-            if(risp.ok) { document.getElementById('login-master-card').classList.add('hidden'); document.getElementById('dashboard-master-content').classList.remove('hidden'); sbloccaSchermataVisiva(); }
-        }
-
-        async function sbloccaSchermataVisiva() {
-            const risp = await fetch('/api/inventario');
-            cacheInventario = await risp.json();
-            costruisciListaMaster(cacheInventario);
-            caricaListaAgenti();
-        }
-
-        function costruisciListaMaster(inv) {
-            const cont = document.getElementById('contenitore-prodotti');
-            cont.innerHTML = "";
-            for(const k in inv) {
-                const p = inv[k];
-                const div = document.createElement('div');
-                div.className = "bg-slate-900 p-4 rounded-xl cursor-pointer";
-                div.onclick = () => { modelloCorrente = k; apriListaClienti(); };
-                div.innerHTML = `<h3 class="font-bold">${p.nome}</h3><p>Qta: ${p.quantita} - Ordini: ${p.ordiniClienti.length}</p>`;
-                cont.appendChild(div);
-            }
-        }
-
-        function apriListaClienti() {
+function apriListaClienti() {
             const pr = cacheInventario[modelloCorrente];
+            if(!pr) return;
             document.getElementById('modal-nome-prodotto').innerText = pr.nome;
-            const corpo = document.getElementById('lista-clienti-corpo');
-            corpo.innerHTML = "";
-            pr.ordiniClienti.forEach(o => {
+            const corpoTabella = document.getElementById('lista-clienti-corpo');
+            corpoTabella.innerHTML = "";
+
+            // ... (logica ordinamento e forEach) ...
+
+            ordiniOrdinati.forEach(ordine => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td><input type="checkbox" ${o.spedito ? 'checked' : ''} onclick="cambiaStatoSpedito('${o.id}', this.checked)"></td>
-                                <td>${o.cliente}</td><td>${o.quantita}</td><td>${o.agente}</td>
-                                <td><button onclick="richiediEliminazioneOrdine('${o.id}')" class="text-red-500 font-bold">✕ Elimina</button></td>`;
-                corpo.appendChild(tr);
+                tr.innerHTML = `
+                    <td><input type="checkbox" ${ordine.spedito ? 'checked' : ''} onclick="cambiaStatoSpedito('${ordine.id}', this.checked)"></td>
+                    <td>${ordine.cliente}</td>
+                    <td>${ordine.quantita}</td>
+                    <td>${ordine.agente}</td>
+                    <td>${ordine.giorno}</td>
+                    <td><button onclick="richiediEliminazioneOrdine('${ordine.id}')" class="text-red-500 font-bold">X</button></td>
+                `;
+                corpoTabella.appendChild(tr);
             });
             document.getElementById('modal-clienti').classList.remove('hidden');
         }
 
-        async function richiediEliminazioneOrdine(id) {
+        // AGGIUNTA:
+        async function richiediEliminazioneOrdine(ordineId) {
             const pass = prompt("Inserisci password cancellazione:");
-            const res = await fetch('/api/master/elimina-ordine', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modello: modelloCorrente, ordineId: id, password: pass }) });
-            if((await res.json()).success) alert("Ordine eliminato");
+            const res = await fetch('/api/master/elimina-ordine', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ modello: modelloCorrente, ordineId: ordineId, password: pass }) 
+            });
+            if((await res.json()).success) { alert("Ordine eliminato"); } else { alert("Errore"); }
         }
-
-        async function caricaListaAgenti() {
-            const risp = await fetch('/api/master/agenti');
-            const agenti = await risp.json();
-            const corpo = document.getElementById('tabella-agenti-corpo');
-            corpo.innerHTML = "";
-            for(const u in agenti) {
-                corpo.innerHTML += `<tr><td class="p-2">${u}</td><td class="p-2">${agenti[u]}</td>
-                                    <td><button onclick="eliminaProfiloAgente('${u}')" class="text-red-500">Elimina</button></td></tr>`;
-            }
-        }
-
-        async function creaProfiloAgente() {
-            const u = document.getElementById('nuovo-agente-user').value;
-            const p = document.getElementById('nuovo-agente-pass').value;
-            await fetch('/api/master/agenti/salva', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
-            caricaListaAgenti();
-        }
-
-        async function eliminaProfiloAgente(u) {
-            await fetch('/api/master/agenti/elimina', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u }) });
-            caricaListaAgenti();
-        }
-
-        function chiudiModal() { document.getElementById('modal-clienti').classList.add('hidden'); }
-        async function cambiaStatoSpedito(id, s) { await fetch('/api/master/stato-spedizione', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modello: modelloCorrente, ordineId: id, spedito: s }) }); }
-
-        socket.on('aggiorna_magazzino', (inv) => { cacheInventario = inv; costruisciListaMaster(inv); if(!document.getElementById('modal-clienti').classList.contains('hidden')) apriListaClienti(); });
-        socket.on('aggiorna_agenti_live', () => caricaListaAgenti());
-    </script>
-</body>
-</html>
