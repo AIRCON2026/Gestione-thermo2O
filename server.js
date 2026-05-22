@@ -54,15 +54,16 @@ app.post('/api/master/login', (req, res) => {
     return res.status(401).json({ success: false });
 });
 
-// GESTIONE ORDINI
+// GESTIONE ORDINI (Corretta per il tuo front-end)
 app.post('/api/ordine', (req, res) => {
     const { agente, cliente, modello, quantitaRichiesta } = req.body;
     const p = db.inventario[modello];
+    
     if (p && p.quantita >= quantitaRichiesta) {
         p.quantita -= quantitaRichiesta;
         const now = new Date();
         const nuovoOrdine = {
-            id: Date.now().toString(),
+            id: Date.now().toString(), // Genera un ID unico basato sul tempo
             cliente,
             quantita: quantitaRichiesta,
             agente,
@@ -71,8 +72,10 @@ app.post('/api/ordine', (req, res) => {
             timestamp: now.getTime(),
             spedito: false
         };
+        
         p.ordiniClienti.push(nuovoOrdine);
         salvaDB();
+        
         io.emit('notifica_master', { tipo: 'SUCCESSO', messaggio: `🟢 ${agente} ha venduto ${quantitaRichiesta} pz a ${cliente}` });
         io.emit('aggiorna_magazzino', db.inventario);
         return res.json({ success: true });
@@ -80,7 +83,7 @@ app.post('/api/ordine', (req, res) => {
     return res.status(400).json({ errore: "PRODOTTO_NON_DISPONIBILE" });
 });
 
-// GESTIONE STATO SPEDITO
+// GESTIONE STATO SPEDITO (Corretta)
 app.post('/api/master/stato-spedizione', (req, res) => {
     const { modello, ordineId, spedito } = req.body;
     const p = db.inventario[modello];
@@ -96,26 +99,7 @@ app.post('/api/master/stato-spedizione', (req, res) => {
     res.status(400).json({ success: false });
 });
 
-// CANCELLAZIONE ORDINE (NUOVO)
-app.post('/api/master/elimina-ordine', (req, res) => {
-    const { modello, ordineId, password } = req.body;
-    if (password !== "AriConDelate") return res.status(401).json({ success: false, messaggio: "Password errata" });
-    const p = db.inventario[modello];
-    if (p) {
-        const index = p.ordiniClienti.findIndex(o => o.id === ordineId);
-        if (index !== -1) {
-            const ordineDaEliminare = p.ordiniClienti[index];
-            p.quantita += parseInt(ordineDaEliminare.quantita);
-            p.ordiniClienti.splice(index, 1);
-            salvaDB();
-            io.emit('aggiorna_magazzino', db.inventario);
-            return res.json({ success: true });
-        }
-    }
-    return res.status(400).json({ success: false, messaggio: "Ordine non trovato" });
-});
-
-// Altre API
+// Altre API (Agenti e Scorte)
 app.post('/api/master/agenti/salva', (req, res) => {
     db.databaseAgenti[req.body.username.toLowerCase().trim()] = req.body.password.trim();
     salvaDB();
@@ -139,3 +123,17 @@ app.post('/api/master/aggiungi-scorte', (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log('Server attivo sulla porta ' + PORT));
+
+
+package.json
+
+{
+  "name": "gestione-thermo2o",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.0"
+  }
+}
