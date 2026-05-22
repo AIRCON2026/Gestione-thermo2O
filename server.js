@@ -42,12 +42,10 @@ app.get('/master', (req, res) => res.sendFile(path.join(__dirname, 'master.html'
 app.get('/api/inventario', (req, res) => res.json(db.inventario));
 app.get('/api/master/agenti', (req, res) => res.json(db.databaseAgenti));
 
-// NUOVA ROTTA: API Storico per Agente
+// API Storico per Agente
 app.get('/api/storico', (req, res) => {
     const agenteRichiedente = req.query.agente;
     let storicoFiltrato = [];
-
-    // Cicla tutti i prodotti per estrarre gli ordini dell'agente
     for (const key in db.inventario) {
         const prod = db.inventario[key];
         const ordiniAgente = prod.ordiniClienti
@@ -59,8 +57,6 @@ app.get('/api/storico', (req, res) => {
             }));
         storicoFiltrato = storicoFiltrato.concat(ordiniAgente);
     }
-
-    // Ordina per data (più recente prima)
     storicoFiltrato.sort((a, b) => b.data - a.data);
     res.json(storicoFiltrato);
 });
@@ -106,6 +102,29 @@ app.post('/api/ordine', (req, res) => {
     return res.status(400).json({ errore: "PRODOTTO_NON_DISPONIBILE" });
 });
 
+// ELIMINAZIONE ORDINE CON RIPRISTINO SCORTE
+app.post('/api/master/elimina-ordine', (req, res) => {
+    const { modello, ordineId, password } = req.body;
+
+    if (password !== "master2026") {
+        return res.status(401).json({ errore: "Password errata" });
+    }
+
+    const p = db.inventario[modello];
+    if (p) {
+        const index = p.ordiniClienti.findIndex(o => o.id === ordineId);
+        if (index !== -1) {
+            const quantitaDaRipristinare = p.ordiniClienti[index].quantita;
+            p.quantita += quantitaDaRipristinare;
+            p.ordiniClienti.splice(index, 1);
+            salvaDB();
+            io.emit('aggiorna_magazzino', db.inventario);
+            return res.json({ success: true });
+        }
+    }
+    res.status(400).json({ errore: "Ordine non trovato" });
+});
+
 // GESTIONE STATO SPEDITO
 app.post('/api/master/stato-spedizione', (req, res) => {
     const { modello, ordineId, spedito } = req.body;
@@ -122,7 +141,7 @@ app.post('/api/master/stato-spedizione', (req, res) => {
     res.status(400).json({ success: false });
 });
 
-// Altre API
+// Altre API Master
 app.post('/api/master/agenti/salva', (req, res) => {
     db.databaseAgenti[req.body.username.toLowerCase().trim()] = req.body.password.trim();
     salvaDB();
