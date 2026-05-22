@@ -36,7 +36,7 @@ function salvaDB() {
     fs.writeFileSync(FILE_DB, JSON.stringify(db, null, 2));
 }
 
-// Rotte
+// Rotte base
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/master', (req, res) => res.sendFile(path.join(__dirname, 'master.html')));
 app.get('/api/inventario', (req, res) => res.json(db.inventario));
@@ -54,11 +54,10 @@ app.post('/api/master/login', (req, res) => {
     return res.status(401).json({ success: false });
 });
 
-// GESTIONE ORDINI
+// Ordini
 app.post('/api/ordine', (req, res) => {
     const { agente, cliente, modello, quantitaRichiesta } = req.body;
     const p = db.inventario[modello];
-    
     if (p && p.quantita >= quantitaRichiesta) {
         p.quantita -= quantitaRichiesta;
         const now = new Date();
@@ -72,10 +71,8 @@ app.post('/api/ordine', (req, res) => {
             timestamp: now.getTime(),
             spedito: false
         };
-        
         p.ordiniClienti.push(nuovoOrdine);
         salvaDB();
-        
         io.emit('notifica_master', { tipo: 'SUCCESSO', messaggio: `🟢 ${agente} ha venduto ${quantitaRichiesta} pz a ${cliente}` });
         io.emit('aggiorna_magazzino', db.inventario);
         return res.json({ success: true });
@@ -83,7 +80,7 @@ app.post('/api/ordine', (req, res) => {
     return res.status(400).json({ errore: "PRODOTTO_NON_DISPONIBILE" });
 });
 
-// GESTIONE STATO SPEDITO
+// Stato spedizione
 app.post('/api/master/stato-spedizione', (req, res) => {
     const { modello, ordineId, spedito } = req.body;
     const p = db.inventario[modello];
@@ -99,14 +96,10 @@ app.post('/api/master/stato-spedizione', (req, res) => {
     res.status(400).json({ success: false });
 });
 
-// GESTIONE CANCELLAZIONE ORDINE (NUOVA FUNZIONE)
+// CANCELLAZIONE ORDINE (Protetta)
 app.post('/api/master/elimina-ordine', (req, res) => {
     const { modello, ordineId, password } = req.body;
-
-    if (password !== "AriConDelate") {
-        return res.status(401).json({ success: false, messaggio: "Password errata" });
-    }
-
+    if (password !== "AriConDelate") return res.status(401).json({ success: false, messaggio: "Password errata" });
     const p = db.inventario[modello];
     if (p) {
         const index = p.ordiniClienti.findIndex(o => o.id === ordineId);
@@ -122,7 +115,7 @@ app.post('/api/master/elimina-ordine', (req, res) => {
     return res.status(400).json({ success: false, messaggio: "Ordine non trovato" });
 });
 
-// Altre API
+// Gestione Agenti
 app.post('/api/master/agenti/salva', (req, res) => {
     db.databaseAgenti[req.body.username.toLowerCase().trim()] = req.body.password.trim();
     salvaDB();
